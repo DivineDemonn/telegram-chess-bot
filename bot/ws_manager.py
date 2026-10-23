@@ -3,7 +3,6 @@ from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self):
-        # Maps chat_id to a list of connected client WebSockets
         self.active_connections: Dict[int, List[WebSocket]] = {}
 
     async def connect(self, chat_id: int, websocket: WebSocket):
@@ -21,13 +20,13 @@ class ConnectionManager:
 
     async def broadcast(self, chat_id: int, data: dict):
         if chat_id in self.active_connections:
-            dead_connections = []
+            dead_sockets = []
             for connection in self.active_connections[chat_id]:
                 try:
                     await connection.send_json(data)
                 except Exception:
-                    dead_connections.append(connection)
-            for dead in dead_connections:
+                    dead_sockets.append(connection)
+            for dead in dead_sockets:
                 self.disconnect(chat_id, dead)
 
 ws_manager = ConnectionManager()
