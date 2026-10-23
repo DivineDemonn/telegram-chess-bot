@@ -1,0 +1,1 @@
+"""Telegram Chess Bot Package."""
