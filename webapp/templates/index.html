@@ -8,12 +8,17 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
     body {
       margin: 0;
+      padding: 0;
       overflow: hidden;
-      background: #090b10;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #080a0f;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     #hud {
       position: absolute;
@@ -26,44 +31,50 @@
       z-index: 10;
     }
     .badge {
-      background: rgba(14, 20, 30, 0.85);
+      background: rgba(14, 20, 32, 0.92);
       border: 1px solid #00f2fe;
-      color: #fff;
+      color: #ffffff;
       padding: 6px 14px;
       border-radius: 20px;
       font-size: 13px;
       font-weight: 600;
-      box-shadow: 0 0 10px rgba(0, 242, 254, 0.25);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
     }
-    #turn-badge { border-color: #fe019a; box-shadow: 0 0 10px rgba(254, 1, 154, 0.25); }
+    #turn-badge {
+      border-color: #fe019a;
+      box-shadow: 0 0 12px rgba(254, 1, 154, 0.25);
+    }
     #connection-indicator {
       position: absolute;
       bottom: 12px;
       left: 14px;
       font-size: 11px;
-      color: #5d6b82;
+      color: #00f2fe;
       pointer-events: none;
+      font-weight: 500;
     }
   </style>
 </head>
 <body>
   <div id="hud">
     <div class="badge" id="players-badge">{{ white_name }} vs {{ black_name }}</div>
-    <div class="badge" id="turn-badge">Turn: White</div>
+    <div class="badge" id="turn-badge">Turn: Syncing...</div>
   </div>
-  <div id="connection-indicator">Connecting to live game...</div>
+  <div id="connection-indicator">● Connecting to live match...</div>
 
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-    tg.setHeaderColor('#090b10');
+    if (window.Telegram && window.Telegram.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+      window.Telegram.WebApp.setHeaderColor('#080a0f');
+    }
 
     const chatId = "{{ chat_id }}";
     let currentFen = "{{ initial_fen }}";
 
-    // --- Scene, Camera, Renderer ---
+    // Three.js Scene Setup
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x090b10, 0.04);
+    scene.fog = new THREE.FogExp2(0x080a0f, 0.038);
 
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.set(0, 8.5, 8.5);
@@ -76,11 +87,12 @@
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
     controls.maxPolarAngle = Math.PI / 2.05;
     controls.minDistance = 4;
     controls.maxDistance = 15;
 
-    // --- Lighting ---
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
@@ -88,54 +100,54 @@
     cyanLight.position.set(-6, 7, -6);
     scene.add(cyanLight);
 
-    const magentaLight = new THREE.PointLight(0xfe019a, 1.4, 25);
-    magentaLight.position.set(6, 7, 6);
-    scene.add(magentaLight);
+    const pinkLight = new THREE.PointLight(0xfe019a, 1.4, 25);
+    pinkLight.position.set(6, 7, 6);
+    scene.add(pinkLight);
 
-    // --- Board Construction ---
+    // Board Generation
     const boardGroup = new THREE.Group();
-    const lightMat = new THREE.MeshStandardMaterial({ color: 0x1b2838, roughness: 0.3 });
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x0c1017, roughness: 0.4 });
+    const lightSquareMat = new THREE.MeshStandardMaterial({ color: 0x1b2838, roughness: 0.35 });
+    const darkSquareMat = new THREE.MeshStandardMaterial({ color: 0x0c1017, roughness: 0.45 });
     const squareGeo = new THREE.BoxGeometry(0.96, 0.2, 0.96);
 
-    for (let r = 0; r < 8; r++) {
-      for (let f = 0; f < 8; f++) {
-        const mat = (r + f) % 2 === 0 ? darkMat : lightMat;
+    for (let rank = 0; rank < 8; rank++) {
+      for (let file = 0; file < 8; file++) {
+        const mat = (rank + file) % 2 === 0 ? darkSquareMat : lightSquareMat;
         const square = new THREE.Mesh(squareGeo, mat);
-        square.position.set(f - 3.5, -0.1, r - 3.5);
+        square.position.set(file - 3.5, -0.1, rank - 3.5);
         square.receiveShadow = true;
         boardGroup.add(square);
       }
     }
     scene.add(boardGroup);
 
-    // --- Piece Meshes & Rendering ---
+    // Pieces Rendering
     const piecesGroup = new THREE.Group();
     scene.add(piecesGroup);
 
-    const whitePieceMat = new THREE.MeshStandardMaterial({ color: 0x00f2fe, emissive: 0x002e3b, roughness: 0.2 });
-    const blackPieceMat = new THREE.MeshStandardMaterial({ color: 0xfe019a, emissive: 0x420023, roughness: 0.2 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0x00f2fe, emissive: 0x003340, roughness: 0.2 });
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0xfe019a, emissive: 0x400024, roughness: 0.2 });
 
     function buildPiece(char) {
       const isWhite = char === char.toUpperCase();
-      const mat = isWhite ? whitePieceMat : blackPieceMat;
-      const t = char.toLowerCase();
+      const mat = isWhite ? whiteMat : blackMat;
+      const type = char.toLowerCase();
 
-      let geo;
-      if (t === 'p') geo = new THREE.CylinderGeometry(0.18, 0.25, 0.5, 12);
-      else if (t === 'r') geo = new THREE.BoxGeometry(0.42, 0.65, 0.42);
-      else if (t === 'n') geo = new THREE.ConeGeometry(0.26, 0.75, 8);
-      else if (t === 'b') geo = new THREE.ConeGeometry(0.24, 0.85, 12);
-      else if (t === 'q') geo = new THREE.CylinderGeometry(0.26, 0.3, 0.95, 16);
-      else if (t === 'k') geo = new THREE.CylinderGeometry(0.28, 0.32, 1.1, 16);
+      let geom;
+      if (type === 'p') geom = new THREE.CylinderGeometry(0.18, 0.25, 0.5, 12);
+      else if (type === 'r') geom = new THREE.BoxGeometry(0.42, 0.65, 0.42);
+      else if (type === 'n') geom = new THREE.ConeGeometry(0.26, 0.75, 8);
+      else if (type === 'b') geom = new THREE.ConeGeometry(0.24, 0.85, 12);
+      else if (type === 'q') geom = new THREE.CylinderGeometry(0.26, 0.3, 0.95, 16);
+      else if (type === 'k') geom = new THREE.CylinderGeometry(0.28, 0.32, 1.1, 16);
 
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(geom, mat);
       mesh.position.y = 0.35;
       mesh.castShadow = true;
       return mesh;
     }
 
-    function renderBoardFromFen(fen) {
+    function renderFen(fen) {
       while (piecesGroup.children.length > 0) {
         piecesGroup.remove(piecesGroup.children[0]);
       }
@@ -157,36 +169,35 @@
       }
     }
 
-    renderBoardFromFen(currentFen);
+    renderFen(currentFen);
 
-    // --- WebSocket Synchronization ---
-    function connectWS() {
+    // WebSocket Synchronizer
+    function initWebSocket() {
       const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
       const ws = new WebSocket(`${protocol}${location.host}/ws/${chatId}`);
       const indicator = document.getElementById("connection-indicator");
 
       ws.onopen = () => {
-        indicator.innerText = "● Live synced";
+        indicator.innerText = "● 3D Board Live Synced";
         indicator.style.color = "#00f2fe";
       };
 
-      ws.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        if (data.event === "move") {
-          renderBoardFromFen(data.fen);
-          document.getElementById("turn-badge").innerText = `Turn: ${data.turn.toUpperCase()} (${data.last_move})`;
+      ws.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        if (payload.event === "move") {
+          renderFen(payload.fen);
+          document.getElementById("turn-badge").innerText = `Turn: ${payload.turn.toUpperCase()} (${payload.last_move})`;
         }
       };
 
       ws.onclose = () => {
-        indicator.innerText = "○ Reconnecting...";
+        indicator.innerText = "○ Disconnected. Reconnecting...";
         indicator.style.color = "#ff4757";
-        setTimeout(connectWS, 2000);
+        setTimeout(initWebSocket, 2000);
       };
     }
-    connectWS();
+    initWebSocket();
 
-    // --- Render Loop & Window Resize ---
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
