@@ -1,18 +1,20 @@
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+BOT_TOKEN: str = os.getenv("BOT_TOKEN", "").strip()
 if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN environment variable is missing.")
+    print("FATAL ERROR: BOT_TOKEN environment variable is missing.")
+    sys.exit(1)
 
-MONGO_URL: str = os.getenv("MONGO_URL", "mongodb://localhost:27017")
-PORT: int = int(os.getenv("PORT", 8000))
+MONGO_URL: str = os.getenv("MONGO_URL", "mongodb://localhost:27017").strip()
+PORT: int = int(os.getenv("PORT", 10000))
 
-# Railway automatically supplies RAILWAY_PUBLIC_DOMAIN without http/https protocol
-raw_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", f"localhost:{PORT}")
-if not raw_domain.startswith("http://") and not raw_domain.startswith("https://"):
-    BASE_URL: str = f"https://{raw_domain}"
+# Render injects RENDER_EXTERNAL_URL automatically for Web Services
+raw_url = os.getenv("RENDER_EXTERNAL_URL", f"http://localhost:{PORT}").strip()
+if raw_url.startswith("http://") or raw_url.startswith("https://"):
+    BASE_URL: str = raw_url
 else:
-    BASE_URL: str = raw_domain
+    BASE_URL: str = f"https://{raw_url}"
